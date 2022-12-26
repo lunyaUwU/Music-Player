@@ -23,37 +23,43 @@ fn prompt(input: &str) -> String{
 fn main(){
     let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
     let sink = rodio::Sink::try_new(&handle).unwrap();
-
-    let mut currently_playing: String = "".to_string();
+    let mut show_stats = true;
     let mut current_artist = "".to_string();
     let mut current_title = "".to_string();
-
+    let mut color = "35";
     loop {
-        println!("\x1B[2J\x1B[1;1H");
-        println!("\x1b[1;35mCurrently Playing: \x1b[0m {} - {}", current_artist, current_title);
-        println!("\x1b[1;35mVolume: \x1b[0m{}", Sink::volume(&sink));
-        if Sink::is_paused(&sink) {
-            println!("\x1b[1;35mStatus: \x1b[0mPaused");
+        if show_stats {
+            println!("\x1B[2J\x1B[1;1H");
+            println!("\x1b[1;{}mCurrently Playing: \x1b[0m {} - {}",color, current_artist, current_title);
+            println!("\x1b[1;{}mVolume: \x1b[0m{}",color, Sink::volume(&sink));
+            if Sink::is_paused(&sink) {
+                println!("\x1b[1;{}mStatus: \x1b[0mPaused",color);
+            }
+            else if Sink::empty(&sink) {
+                println!("\x1b[1;{}mStatus: \x1b[0mStopped",color);
+            }
+            else {
+                println!("\x1b[1;{}mStatus: \x1b[0mPlaying",color);
+            }
+            if Sink::speed(&sink) != 1.0 {
+                println!("\x1b[1;{}mSpeed: \x1b[0m{}",color, Sink::speed(&sink));
+            }
         }
-        else if Sink::empty(&sink) {
-            println!("\x1b[1;35mStatus: \x1b[0mStopped");
-        }
-        else {
-            println!("\x1b[1;35mStatus: \x1b[0mPlaying");
-        }
-        if Sink::speed(&sink) != 1.0 {
-            println!("\x1b[1;35mSpeed: \x1b[0m{}", Sink::speed(&sink));
-        }
+        show_stats = true;
         let input = prompt("Enter a command: ");
-        if input == "play"{
-            let filePath:String = prompt("Enter a file name: ");
+
+        if input.starts_with("play"){
+            let mut filePath = input.replace("play ", "");
+            if filePath == "play" {
+                filePath = prompt("Enter a file name: ");
+            }
             let file_path = filePath.clone();  // store the value of filePath in a separate variable
 
             // Use the `match` statement to handle the Result returned by File::open()
             match std::fs::File::open(filePath) {
                 Ok(file) => {
-                    Sink::set_volume(&sink, 0.0);
-                    Sink::set_speed(&sink, 10000.0);
+                    Sink::set_volume(&sink, 0.0 );
+                    Sink::set_speed(&sink, 1000.0);
                     Sink::sleep_until_end(&sink);
                     Sink::set_volume(&sink, 1.0);
                     Sink::set_speed(&sink, 1.0);
@@ -85,17 +91,33 @@ fn main(){
         }
         else if input == "stop" {
             Sink::stop(&sink);
-            currently_playing = "".to_string();
         }
-        else if input == "volume" {
-            let volume = prompt("Enter a volume: ");
-            let volume = volume.parse::<f32>().unwrap();
-            Sink::set_volume(&sink, volume);
+        else if input.starts_with("volume") || input.starts_with("vol") {
+            //strip the command from the input  
+            let mut volume = input.replace("volume ", "");
+            volume = volume.replace("vol ", "");
+            //check if the string has a number
+            if volume.parse::<f32>().is_ok() {
+                let volume = volume.parse::<f32>().unwrap();
+                Sink::set_volume(&sink, volume);
+            }
+            else {
+                let volume = prompt("Enter a volume: ");
+                let volume = volume.parse::<f32>().unwrap();
+                Sink::set_volume(&sink, volume);
+            }   
         }
-        else if input == "speed" {
-            let speed = prompt("Enter a speed: ");
-            let speed = speed.parse::<f32>().unwrap();
-            Sink::set_speed(&sink, speed);
+        else if input.starts_with("speed") {
+            let mut speed = input.replace("speed ", "");
+            if speed.parse::<f32>().is_ok() {
+                let speed = speed.parse::<f32>().unwrap();
+                Sink::set_speed(&sink, speed);
+            }
+            else {
+                let speed = prompt("Enter a speed: ");
+                let speed = speed.parse::<f32>().unwrap();
+                Sink::set_speed(&sink, speed);
+            }
         }
         else if input == "skip" {
             Sink::set_volume(&sink, 0.0);
@@ -105,6 +127,42 @@ fn main(){
             Sink::set_speed(&sink, 1.0);
 
 
+        }
+        else if input == "theme" {
+            let color_string:&str = &prompt("Enter a color: ");
+            
+            match color_string{
+                "red" => color = "31",
+                "green" => color = "32",
+                "yellow" => color = "33",
+                "blue" => color = "34",
+                "magenta" => color = "35",
+                "cyan" => color = "36",
+                "white" => color = "37",
+                _ => color = "35",
+            }
+
+        }
+        else if input == "help" {
+            println!("Commands:");
+            println!("\x1b[1;{}mplay         - \x1b[0mplays a file",color);
+            println!("\x1b[1;{}mpause        - \x1b[0mpauses the current song",color);
+            println!("\x1b[1;{}mresume       - \x1b[0mresumes the current song",color);
+            println!("\x1b[1;{}mstop         - \x1b[0mbreaks everything",color);
+            println!("\x1b[1;{}mvolume \x1b[34m[\x1b[35mvol\x1b[34m]\x1b[35m - \x1b[0msets the volume",color);
+            println!("\x1b[1;{}mspeed        - \x1b[0msets the speed", color);
+            println!("\x1b[1;{}mskip         - \x1b[0mskips the current song",color);
+            print!("\x1b[1;{}mtheme         - \x1b[0mlet you change the color",color);
+            println!("\x1b[1;{}mexit         - \x1b[0mexits the program",color);
+            show_stats = false;
+        }
+        else if input == "stats" {
+            if show_stats {
+                show_stats = false;
+            }
+            else {
+                show_stats = true;
+            }
         }
 
         else if input == "exit" {
