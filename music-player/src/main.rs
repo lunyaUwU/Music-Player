@@ -1,9 +1,6 @@
 
 use std::io::{stdout, stdin,Write};
-use std::fs::File;
 use std::io::BufReader;
-use rodio::source;
-use rodio::{Decoder, OutputStream, source::Source};
 use rodio::Sink;
 extern crate mp3_metadata;
 
@@ -49,14 +46,14 @@ fn main(){
         let input = prompt("Enter a command: ");
 
         if input.starts_with("play"){
-            let mut filePath = input.replace("play ", "");
-            if filePath == "play" {
-                filePath = prompt("Enter a file name: ");
+            let mut file_path = input.replace("play ", "");
+            if file_path == "play" {
+                file_path = prompt("Enter a file name: ");
             }
-            let file_path = filePath.clone();  // store the value of filePath in a separate variable
+            let file_path_2 = file_path.clone();  // store the value of filePath in a separate variable
 
             // Use the `match` statement to handle the Result returned by File::open()
-            match std::fs::File::open(filePath) {
+            match std::fs::File::open(file_path) {
                 Ok(file) => {
                     Sink::set_volume(&sink, 0.0 );
                     Sink::set_speed(&sink, 1000.0);
@@ -64,14 +61,15 @@ fn main(){
                     Sink::set_volume(&sink, 1.0);
                     Sink::set_speed(&sink, 1.0);
                     Sink::append(&sink, rodio::Decoder::new(BufReader::new(file)).unwrap());
-                    let meta = mp3_metadata::read_from_file(file_path.clone()).expect("File error");
+                    let meta = mp3_metadata::read_from_file(file_path_2.clone()).expect("File error");
                     if let Some(tag) = meta.tag {
                         current_artist = tag.artist.to_string();
                         current_title = tag.title.to_string();
                     }
                     else{
+                        print!("No metadata found for file: {} (using file name instead)\r", file_path_2);
                         current_artist = "unknown".to_string();
-                        current_title = file_path.to_string();
+                        current_title = file_path_2.to_string();
                     }
 
 
@@ -82,6 +80,21 @@ fn main(){
                 }
             }
  
+        }
+        else if input.starts_with("add Song") || input.starts_with("add"){
+            let mut file_path = input.replace("add Song ", "");
+            if file_path == "add Song" {
+                file_path = prompt("Enter a file name: ");
+            }
+            match std::fs::File::open(file_path) {
+                Ok(file) => {
+                    Sink::append(&sink, rodio::Decoder::new(BufReader::new(file)).unwrap());
+                },
+                Err(error) => {
+                    // Handle the error here
+                    println!("Error opening file: {}", error);
+                }
+            };
         }
         else if input == "pause" {
             Sink::pause(&sink);
@@ -108,7 +121,7 @@ fn main(){
             }   
         }
         else if input.starts_with("speed") {
-            let mut speed = input.replace("speed ", "");
+            let speed = input.replace("speed ", "");
             if speed.parse::<f32>().is_ok() {
                 let speed = speed.parse::<f32>().unwrap();
                 Sink::set_speed(&sink, speed);
@@ -128,18 +141,33 @@ fn main(){
 
 
         }
-        else if input == "theme" {
-            let color_string:&str = &prompt("Enter a color: ");
-            
-            match color_string{
-                "red" => color = "31",
-                "green" => color = "32",
-                "yellow" => color = "33",
-                "blue" => color = "34",
-                "magenta" => color = "35",
-                "cyan" => color = "36",
-                "white" => color = "37",
-                _ => color = "35",
+        else if input.starts_with("theme") {
+            let color_string:&str = &input.replace("theme ", "");
+            if color_string == "theme" {
+                let color_string_2:&str = &prompt("Enter a color: ");
+                            
+                match color_string_2{
+                    "red" => color = "31",
+                    "green" => color = "32",
+                    "yellow" => color = "33",
+                    "blue" => color = "34",
+                    "magenta" => color = "35",
+                    "cyan" => color = "36",
+                    "white" => color = "37",
+                    _ => color = "35",
+                }
+            }
+            else {
+                match color_string{
+                    "red" => color = "31",
+                    "green" => color = "32",
+                    "yellow" => color = "33",
+                    "blue" => color = "34",
+                    "magenta" => color = "35",
+                    "cyan" => color = "36",
+                    "white" => color = "37",
+                    _ => color = "35",
+                }
             }
 
         }
@@ -149,10 +177,10 @@ fn main(){
             println!("\x1b[1;{}mpause        - \x1b[0mpauses the current song",color);
             println!("\x1b[1;{}mresume       - \x1b[0mresumes the current song",color);
             println!("\x1b[1;{}mstop         - \x1b[0mbreaks everything",color);
-            println!("\x1b[1;{}mvolume \x1b[34m[\x1b[35mvol\x1b[34m]\x1b[35m - \x1b[0msets the volume",color);
+            println!("\x1b[1;{}mvolume \x1b[34m[\x1b[35mvol\x1b[34m]\x1b[{}m - \x1b[0msets the volume",color,color);
             println!("\x1b[1;{}mspeed        - \x1b[0msets the speed", color);
             println!("\x1b[1;{}mskip         - \x1b[0mskips the current song",color);
-            print!("\x1b[1;{}mtheme         - \x1b[0mlet you change the color",color);
+            println!("\x1b[1;{}mtheme        - \x1b[0mlet you change the color",color);
             println!("\x1b[1;{}mexit         - \x1b[0mexits the program",color);
             show_stats = false;
         }
